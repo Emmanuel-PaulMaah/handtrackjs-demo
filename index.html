@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>handtrack.js demo - hand controlled sphere with bounding box</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #video {
+      display: none; /* to hide webcam feed for now */
+    }
+  </style>
+</head>
+<body>
+  <video id="video" width="640" height="480" autoplay></video>
+  <canvas id="canvas"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/handtrackjs/dist/handtrack.min.js"></script>
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let model;
+    let sphere = { x: canvas.width / 2, y: canvas.height / 2, radius: 30 };
+
+    const options = {
+      flipHorizontal: true,
+      maxNumBoxes: 1,
+      scoreThreshold: 0.7
+    };
+
+    // load model
+    handTrack.load(options).then(lmodel => {
+      model = lmodel;
+      handTrack.startVideo(video).then(status => {
+        if (status) {
+          runDetection();
+        }
+      });
+    });
+
+    function runDetection() {
+      model.detect(video).then(predictions => {
+        if (predictions.length > 0) {
+          let hand = predictions[0].bbox; // [x, y, width, height]
+          let handX = hand[0] + hand[2] / 2;
+          let handY = hand[1] + hand[3] / 2;
+
+          // move sphere to follow hand
+          sphere.x = (handX / video.width) * canvas.width;
+          sphere.y = (handY / video.height) * canvas.height;
+        }
+
+        // clear & draw sphere
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.arc(sphere.x, sphere.y, sphere.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "blue";
+        ctx.fill();
+
+        // draw the bounding boxes
+        model.renderPredictions(predictions, canvas, ctx, video);
+
+        requestAnimationFrame(runDetection);
+      });
+    }
+  </script>
+</body>
+</html>
